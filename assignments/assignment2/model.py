@@ -1,6 +1,6 @@
 import numpy as np
 
-from layers import FullyConnectedLayer, ReLULayer, softmax_with_cross_entropy, l2_regularization
+from layers import FullyConnectedLayer, ReLULayer, softmax_with_cross_entropy, l2_regularization, softmax
 
 
 class TwoLayerNet:
@@ -17,8 +17,9 @@ class TwoLayerNet:
         reg, float - L2 regularization strength
         """
         self.reg = reg
-        # TODO Create necessary layers
-        raise Exception("Not implemented!")
+        self.fc1 = FullyConnectedLayer(n_input, hidden_layer_size)
+        self.relu = ReLULayer()
+        self.fc2 = FullyConnectedLayer(hidden_layer_size, n_output)
 
     def compute_loss_and_gradients(self, X, y):
         """
@@ -31,16 +32,25 @@ class TwoLayerNet:
         """
         # Before running forward and backward pass through the model,
         # clear parameter gradients aggregated from the previous pass
-        # TODO Set parameter gradient to zeros
-        # Hint: using self.params() might be useful!
-        raise Exception("Not implemented!")
-        
-        # TODO Compute loss and fill param gradients
+        params = self.params()
+        for param_key, param_value in params.items():
+            param_value.grad = np.zeros_like(param_value.value)
+
+        # Compute loss and fill param gradients
         # by running forward and backward passes through the model
-        
-        # After that, implement l2 regularization on all params
-        # Hint: self.params() is useful again!
-        raise Exception("Not implemented!")
+        X = self.fc1.forward(X)
+        X = self.relu.forward(X)
+        X = self.fc2.forward(X)
+        loss, grad = softmax_with_cross_entropy(X, y)
+
+        grad = self.fc2.backward(grad)
+        grad = self.relu.backward(grad)
+        grad = self.fc1.backward(grad)
+
+        for param_key, param_value in params.items():
+            reg_loss, reg_grad = l2_regularization(param_value.value, self.reg)
+            loss += reg_loss
+            param_value.grad += reg_grad
 
         return loss
 
@@ -54,19 +64,19 @@ class TwoLayerNet:
         Returns:
           y_pred, np.array of int (test_samples)
         """
-        # TODO: Implement predict
-        # Hint: some of the code of the compute_loss_and_gradients
-        # can be reused
-        pred = np.zeros(X.shape[0], np.int)
-
-        raise Exception("Not implemented!")
-        return pred
+        X = self.fc1.forward(X)
+        X = self.relu.forward(X)
+        X = self.fc2.forward(X)
+        X = softmax(X)
+        return np.argmax(X, axis=1)
 
     def params(self):
         result = {}
-
-        # TODO Implement aggregating all of the params
-
-        raise Exception("Not implemented!")
+        layers_with_params = [self.fc1, self.fc2]
+        for i in range(len(layers_with_params)):
+            layer = layers_with_params[i]
+            layer_number = str(i)
+            for param_key, param_value in layer.params().items():
+                result[param_key + str(layer_number)] = param_value
 
         return result
