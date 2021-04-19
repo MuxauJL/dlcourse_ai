@@ -3,7 +3,7 @@ import numpy as np
 from layers import (
     FullyConnectedLayer, ReLULayer,
     ConvolutionalLayer, MaxPoolingLayer, Flattener,
-    softmax_with_cross_entropy, l2_regularization
+    softmax, softmax_with_cross_entropy, l2_regularization
     )
 
 
@@ -26,8 +26,16 @@ class ConvNet:
         conv1_channels, int - number of filters in the 1st conv layer
         conv2_channels, int - number of filters in the 2nd conv layer
         """
-        # TODO Create necessary layers
-        raise Exception("Not implemented!")
+        filter_size = 3
+        pool_size = 4
+        self.conv1 = ConvolutionalLayer(input_shape[2], conv1_channels, filter_size, padding=1)
+        self.relu1 = ReLULayer()
+        self.max_pool1 = MaxPoolingLayer(pool_size, stride=pool_size)
+        self.conv2 = ConvolutionalLayer(conv1_channels, conv2_channels, filter_size, padding=1)
+        self.relu2 = ReLULayer()
+        self.max_pool2 = MaxPoolingLayer(pool_size, stride=pool_size)
+        self.flatten = Flattener()
+        self.fc = FullyConnectedLayer(n_input=4 * conv2_channels, n_output=n_output_classes)
 
     def compute_loss_and_gradients(self, X, y):
         """
@@ -40,21 +48,55 @@ class ConvNet:
         """
         # Before running forward and backward pass through the model,
         # clear parameter gradients aggregated from the previous pass
+        params = self.params()
+        for param_key, param_value in params.items():
+            param_value.grad = np.zeros_like(param_value.value)
 
-        # TODO Compute loss and fill param gradients
+        # Compute loss and fill param gradients
         # Don't worry about implementing L2 regularization, we will not
         # need it in this assignment
-        raise Exception("Not implemented!")
+        X = self.conv1.forward(X)
+        X = self.relu1.forward(X)
+        X = self.max_pool1.forward(X)
+        X = self.conv2.forward(X)
+        X = self.relu2.forward(X)
+        X = self.max_pool2.forward(X)
+        X = self.flatten.forward(X)
+        X = self.fc.forward(X)
+        loss, grad = softmax_with_cross_entropy(X, y)
+
+        grad = self.fc.backward(grad)
+        grad = self.flatten.backward(grad)
+        grad = self.max_pool2.backward(grad)
+        grad = self.relu2.backward(grad)
+        grad = self.conv2.backward(grad)
+        grad = self.max_pool1.backward(grad)
+        grad = self.relu1.backward(grad)
+        grad = self.conv1.backward(grad)
+
+        return loss
 
     def predict(self, X):
-        # You can probably copy the code from previous assignment
-        raise Exception("Not implemented!")
+        X = self.conv1.forward(X)
+        X = self.relu1.forward(X)
+        X = self.max_pool1.forward(X)
+        X = self.conv2.forward(X)
+        X = self.relu2.forward(X)
+        X = self.max_pool2.forward(X)
+        X = self.flatten.forward(X)
+        X = self.fc.forward(X)
+        X = softmax(X)
+        return np.argmax(X, axis=1)
 
     def params(self):
-        result = {}
-
-        # TODO: Aggregate all the params from all the layers
+        # Aggregate all the params from all the layers
         # which have parameters
-        raise Exception("Not implemented!")
+        result = {}
+        layers_with_params = [self.conv1, self.conv2, self.fc]
+        for i in range(len(layers_with_params)):
+            layer = layers_with_params[i]
+            layer_number = str(i)
+            for param_key, param_value in layer.params().items():
+                result[param_key + str(layer_number)] = param_value
 
         return result
